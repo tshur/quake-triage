@@ -27,9 +27,21 @@ def cnn_model_fn(features, labels, mode):
         [-1, 256, 256, 1] # desired shape: [batch_size, width, height, channels]
     )
 
+    pool01 = tf.layers.max_pooling2d(
+        inputs=input_layer,          # inputs from the previous convolutional layer
+        pool_size=[2, 2],      # max_pool each 2x2 square into 1 value
+        strides=2              # stride 2 squares to the right after each pool
+    )
+
+    pool02 = tf.layers.max_pooling2d(
+        inputs=pool01,          # inputs from the previous convolutional layer
+        pool_size=[2, 2],      # max_pool each 2x2 square into 1 value
+        strides=2              # stride 2 squares to the right after each pool
+    )
+
     # First Convolutional Layer; output shape = [batch_size, 256, 256, 16]
     conv1 = tf.layers.conv2d(
-        inputs=input_layer,    # inputs from the previous layer of features
+        inputs=pool02,    # inputs from the previous layer of features
         filters=32,            # a total of 32 filters, creating 32 outputs
         kernel_size=[5, 5],    # 5x5 convolution tiles
         padding="same",        # output padded to have same dimensions as input
@@ -46,7 +58,7 @@ def cnn_model_fn(features, labels, mode):
     # Second Conv & Pooling Layers; output shape = [batch_size, 64, 64, 32]
     conv2 = tf.layers.conv2d(
         inputs=pool1,
-        filters=32,            # now using 64 filters, creating 64 outputs
+        filters=64,            # now using 64 filters, creating 64 outputs
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu
@@ -55,25 +67,13 @@ def cnn_model_fn(features, labels, mode):
     # max_pooling reduces our `image` width and height by 50%
     pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
-    # Third Conv & Pooling Layers; output shape = [batch_size, 32, 32, 64]
-    conv3 = tf.layers.conv2d(
-        inputs=pool2,
-        filters=64,            # now using 64 filters, creating 64 outputs
-        kernel_size=[5, 5],
-        padding="same",
-        activation=tf.nn.relu
-    )
-
-    # max_pooling reduces our `image` width and height by 50%
-    pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
-
     # Flatten pool2 for input to dense layer; out_shape=[batch_size, 3136]
-    pool3_flat = tf.reshape(pool3, [-1, 32 * 32 * 64])  # reshape to be flat (2D)
+    pool3_flat = tf.reshape(pool2, [-1, 16 * 16 * 64])  # reshape to be flat (2D)
 
     # Performs the actual classification of the abstracted features from conv1/2
     dense = tf.layers.dense(
         inputs=pool3_flat,     # inputs from flattened pool layer
-        units=512,             # 1,024 neurons in the layer (1024 outputs)
+        units=256,             # 1,024 neurons in the layer (1024 outputs)
         activation=tf.nn.relu  # ReLU activation function
     )
 
@@ -81,7 +81,7 @@ def cnn_model_fn(features, labels, mode):
     # decrease the chances of over-fitting the training data
     dropout = tf.layers.dropout(
         inputs=dense,          # inputs from the dense layer
-        rate=0.2,              # randomly drop-out 40% of samples; keep 60%
+        rate=0.5,              # randomly drop-out 40% of samples; keep 60%
         training=(mode == tf.estimator.ModeKeys.TRAIN)  # is training mode? T/F
     )
     # Output of dense layer, shape = [batch_size, 1024]
@@ -130,7 +130,7 @@ def cnn_model_fn(features, labels, mode):
     if mode == tf.estimator.ModeKeys.TRAIN:
         # We want a low learning rate so that we can slowly but surely reach
         # the optimum. Higher rates may learn faster but may overshoot the opt
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.05)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.005)
 
         # Use our Grad Descent optimizer to minimize the loss we calculated!
         train_op = optimizer.minimize(
@@ -179,19 +179,19 @@ def main(_):
     tensors_to_log = {"probabilities": "softmax_tensor"} # prob from earlier
     logging_hook = tf.train.LoggingTensorHook(
         tensors=tensors_to_log,  # format {name-for-log: tensor-to-log}
-        every_n_iter=50  # log every 50 steps of training
+        every_n_iter=100  # log every 50 steps of training
     )
 
     # Training the model
     train_input_fn = tf.estimator.inputs.numpy_input_fn(  # org. our inputs
         x={"x": train_data},  # set the feature data
         y=train_labels,       # set the truth labels
-        batch_size=len(train_data),       # num samples to give at a time - orig: 100
+        batch_size=32,       # num samples to give at a time - orig: 100
         num_epochs=None,
         shuffle=True)         # randomize
     classifier.train(
         input_fn=train_input_fn,  # training inputs organized above
-        steps=500,                # orig: 20000 training steps
+        steps=1000,                # orig: 20000 training steps
         hooks=[logging_hook])     # connect to logging
 
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
