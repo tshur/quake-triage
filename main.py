@@ -183,17 +183,17 @@ def main(_):
         every_n_iter=100  # log every 50 steps of training
     )
 
-    # Training the model
-    train_input_fn = tf.estimator.inputs.numpy_input_fn(  # org. our inputs
-        x={"x": train_data},  # set the feature data
-        y=train_labels,       # set the truth labels
-        batch_size=len(train_data),       # num samples to give at a time - orig: 100
-        num_epochs=None,
-        shuffle=True)         # randomize
-    classifier.train(
-        input_fn=train_input_fn,  # training inputs organized above
-        steps=500,                # orig: 20000 training steps
-        hooks=[logging_hook])     # connect to logging
+    # # Training the model
+    # train_input_fn = tf.estimator.inputs.numpy_input_fn(  # org. our inputs
+    #     x={"x": train_data},  # set the feature data
+    #     y=train_labels,       # set the truth labels
+    #     batch_size=len(train_data),       # num samples to give at a time - orig: 100
+    #     num_epochs=None,
+    #     shuffle=True)         # randomize
+    # classifier.train(
+    #     input_fn=train_input_fn,  # training inputs organized above
+    #     steps=500,                # orig: 20000 training steps
+    #     hooks=[logging_hook])     # connect to logging
 
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
         x={"x": eval_data},
