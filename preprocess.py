@@ -44,6 +44,8 @@ def main():
                 #     img = np.lib.pad(img, ((math.floor(padding), math.ceil(padding)), (0, 0), (0, 0)), 'constant')
 
                 img = cv2.resize(img, (256, 256))
+                img = img[10:-10][10:-10]
+                img = cv2.resize(img, (128, 128))
 
                 # save processed images
                 if not os.path.exists(proc_label_filepath):
