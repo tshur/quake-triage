@@ -153,6 +153,7 @@ def cnn_model_fn(features, labels, mode):
         )
     }
 
+
     # return our estimator with the loss and eval_metric_ops to find accuracy
     return tf.estimator.EstimatorSpec(
         mode=mode,
@@ -194,10 +195,10 @@ def main(_):
         hooks=[logging_hook])     # connect to logging
 
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-        x={"x": images},
-        y=labels,
-        shuffle=False
-    )
+        x={"x": eval_data},
+        y=eval_labels,
+        num_epochs=1,
+        shuffle=False)
 
     # evaluate based on the data!
     eval_results = classifier.evaluate(
@@ -208,12 +209,42 @@ def main(_):
     print(eval_results)  # Print our results and accuracy!
 
 def load_dataset():
-	train_folder = 'data/train'
-	test_folder = 'data/test'
+    FeatureSet = namedtuple('FeatureSet', ['images', 'labels'])
 
-	
+    train_filepath = os.path.join('data', 'train', 'proc')
+    test_filepath = os.path.join('data', 'test', 'proc')
 
-	images, labels = preprocess()
+    images = []
+    labels = []
+    for label in os.listdir(train_filepath):
+        for file in os.listdir(os.path.join(train_filepath, label)):
+            img = cv2.imread(os.path.join(train_filepath, label, file))
+            images.push(img.flatten() / 255.0)
+            labels.push(label)
+
+    trainSet = FeatureSet(
+        images=images,
+        labels=labels
+    )
+
+    images = []
+    labels = []
+    for label in os.listdir(test_filepath):
+        for file in os.listdir(os.path.join(test_filepath, label)):
+            img = cv2.imread(os.path.join(test_filepath, label, file))
+            images.push(img.flatten() / 255.0)
+            labels.push(label)
+
+    testSet = FeatureSet(
+        images=images,
+        labels=labels
+    )
+
+    return namedtuple('Data', ['train', 'test'])(
+        train=trainSet,
+        test=testSet
+    )
+>>>>>>> Stashed changes
 
 if __name__ == "__main__":
   tf.app.run()
