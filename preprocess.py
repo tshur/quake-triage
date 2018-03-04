@@ -1,3 +1,5 @@
+"""Preprocess: our raw images by resizing grayscale."""
+
 import os
 import cv2
 import numpy as np
@@ -27,25 +29,9 @@ def main():
                 # load the image as a grayscale
                 img = cv2.imread(os.path.join(raw_label_filepath, image_name), cv2.IMREAD_GRAYSCALE)
 
-                # rows, cols, _ = img.shape
-                # if rows > cols:
-                #     factor = 256.0 / rows
-                #     rows = 256
-                #     cols = int(round(cols * factor))
-                #     padding = (rows - cols) / 2.0
-                #     img = cv2.resize(img, (cols, rows))
-                #     img = np.lib.pad(img, ((0, 0), (math.floor(padding), math.ceil(padding)), (0, 0)), 'constant')
-                # else:
-                #     factor = 256.0 / cols
-                #     cols = 256
-                #     rows = int(round(rows * factor))
-                #     padding = (cols - rows) / 2.0
-                #     img = cv2.resize(img, (cols, rows))
-                #     img = np.lib.pad(img, ((math.floor(padding), math.ceil(padding)), (0, 0), (0, 0)), 'constant')
-
-                img = cv2.resize(img, (256, 256))
-                img = img[10:-10][10:-10]
-                img = cv2.resize(img, (128, 128))
+                # resize
+                img = cv2.resize(img, (138, 138))  # allow stretch for resize
+                img = img[10:-10][10:-10]  # trim images
 
                 # save processed images
                 if not os.path.exists(proc_label_filepath):
