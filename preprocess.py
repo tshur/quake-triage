@@ -30,8 +30,8 @@ def main():
                 img = cv2.imread(os.path.join(raw_label_filepath, image_name), cv2.IMREAD_GRAYSCALE)
 
                 # resize
-                img = cv2.resize(img, (138, 138))  # allow stretch for resize
-                img = img[10:-10][10:-10]  # trim images
+                img = cv2.resize(img, (148, 148))  # allow stretch for resize
+                img = img[10:-10,10:-10]  # trim images
 
                 # save processed images
                 if not os.path.exists(proc_label_filepath):
