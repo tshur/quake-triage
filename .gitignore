@@ -1,3 +1,7 @@
+### Custom ###
+proc
+convnet_quake
+
 ### macOS ###
 .DS_Store
 .AppleDouble

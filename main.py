@@ -24,7 +24,7 @@ def cnn_model_fn(features, labels, mode):
     3, i.e., the number of color channels (in this case, img is RGB)"""
     input_layer = tf.reshape(
         features["x"],  # data to reshape; our image features
-        [-1, 256, 256, 3] # desired shape: [batch_size, width, height, channels]
+        [-1, 256, 256, 1] # desired shape: [batch_size, width, height, channels]
     )
 
     # First Convolutional Layer; output shape = [batch_size, 256, 256, 16]
@@ -68,7 +68,7 @@ def cnn_model_fn(features, labels, mode):
     pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
 
     # Flatten pool2 for input to dense layer; out_shape=[batch_size, 3136]
-    pool3_flat = tf.reshape(pool3, [-1, 32 * 32 * 3 * 64])  # reshape to be flat (2D)
+    pool3_flat = tf.reshape(pool3, [-1, 32 * 32 * 64])  # reshape to be flat (2D)
 
     # Performs the actual classification of the abstracted features from conv1/2
     dense = tf.layers.dense(
@@ -130,7 +130,7 @@ def cnn_model_fn(features, labels, mode):
     if mode == tf.estimator.ModeKeys.TRAIN:
         # We want a low learning rate so that we can slowly but surely reach
         # the optimum. Higher rates may learn faster but may overshoot the opt
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.06)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.05)
 
         # Use our Grad Descent optimizer to minimize the loss we calculated!
         train_op = optimizer.minimize(
@@ -186,7 +186,7 @@ def main(_):
     train_input_fn = tf.estimator.inputs.numpy_input_fn(  # org. our inputs
         x={"x": train_data},  # set the feature data
         y=train_labels,       # set the truth labels
-        batch_size=8,       # num samples to give at a time - orig: 100
+        batch_size=len(train_data),       # num samples to give at a time - orig: 100
         num_epochs=None,
         shuffle=True)         # randomize
     classifier.train(
@@ -216,35 +216,35 @@ def load_dataset():
 
     images = []
     labels = []
+    img = None
     for label in os.listdir(train_filepath):
         for file in os.listdir(os.path.join(train_filepath, label)):
-            img = cv2.imread(os.path.join(train_filepath, label, file))
-            images.push(img.flatten() / 255.0)
-            labels.push(label)
+            img = cv2.imread(os.path.join(train_filepath, label, file), cv2.IMREAD_GRAYSCALE)
+            images.append(img.flatten() / 255.0)
+            labels.append(int(label))
 
     trainSet = FeatureSet(
-        images=images,
-        labels=labels
+        images=np.array(images, dtype=np.float32),
+        labels=np.array(labels, dtype=np.float32)
     )
 
     images = []
     labels = []
     for label in os.listdir(test_filepath):
         for file in os.listdir(os.path.join(test_filepath, label)):
-            img = cv2.imread(os.path.join(test_filepath, label, file))
-            images.push(img.flatten() / 255.0)
-            labels.push(label)
+            img = cv2.imread(os.path.join(test_filepath, label, file), cv2.IMREAD_GRAYSCALE)
+            images.append(img.flatten() / 255.0)
+            labels.append(int(label))
 
     testSet = FeatureSet(
-        images=images,
-        labels=labels
+        images=np.array(images, dtype=np.float32),
+        labels=np.array(labels, dtype=np.float32)
     )
 
     return namedtuple('Data', ['train', 'test'])(
         train=trainSet,
         test=testSet
     )
->>>>>>> Stashed changes
 
 if __name__ == "__main__":
   tf.app.run()
