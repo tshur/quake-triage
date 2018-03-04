@@ -19,15 +19,15 @@ def cnn_model_fn(features, labels, mode):
     """Model function for CNN."""
 
     """Input Layer, i.e., the features or pixels of the image, reshaped to be a
-    28x28 pixel image with a batch_size of `-1` which indicates the
+    256x256 pixel image with a batch_size of `-1` which indicates the
     batch_size should be automatically determined. The number of channels is
-    1, i.e., the number of color channels (in this case, img is monochrome)"""
+    3, i.e., the number of color channels (in this case, img is RGB)"""
     input_layer = tf.reshape(
         features["x"],  # data to reshape; our image features
-        [-1, 28, 28, 1] # desired shape: [batch_size, width, height, channels]
+        [-1, 256, 256, 3] # desired shape: [batch_size, width, height, channels]
     )
 
-    # First Convolutional Layer; output shape = [batch_size, 28, 28, 32]
+    # First Convolutional Layer; output shape = [batch_size, 256, 256, 16]
     conv1 = tf.layers.conv2d(
         inputs=input_layer,    # inputs from the previous layer of features
         filters=32,            # a total of 32 filters, creating 32 outputs
@@ -36,17 +36,17 @@ def cnn_model_fn(features, labels, mode):
         activation=tf.nn.relu  # ReLU activation applied to the output
     )
 
-    # First Pooling Layer; output shape = [batch_size, 14, 14, 32]
+    # First Pooling Layer; output shape = [batch_size, 128, 128, 16]
     pool1 = tf.layers.max_pooling2d(
         inputs=conv1,          # inputs from the previous convolutional layer
         pool_size=[2, 2],      # max_pool each 2x2 square into 1 value
         strides=2              # stride 2 squares to the right after each pool
     )
 
-    # Second Conv & Pooling Layers; output shape = [batch_size, 7, 7, 64]
+    # Second Conv & Pooling Layers; output shape = [batch_size, 64, 64, 32]
     conv2 = tf.layers.conv2d(
         inputs=pool1,
-        filters=64,            # now using 64 filters, creating 64 outputs
+        filters=32,            # now using 64 filters, creating 64 outputs
         kernel_size=[5, 5],
         padding="same",
         activation=tf.nn.relu
@@ -55,12 +55,24 @@ def cnn_model_fn(features, labels, mode):
     # max_pooling reduces our `image` width and height by 50%
     pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
+    # Third Conv & Pooling Layers; output shape = [batch_size, 32, 32, 64]
+    conv3 = tf.layers.conv2d(
+        inputs=pool2,
+        filters=64,            # now using 64 filters, creating 64 outputs
+        kernel_size=[5, 5],
+        padding="same",
+        activation=tf.nn.relu
+    )
+
+    # max_pooling reduces our `image` width and height by 50%
+    pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], strides=2)
+
     # Flatten pool2 for input to dense layer; out_shape=[batch_size, 3136]
-    pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])  # reshape to be flat (2D)
+    pool3_flat = tf.reshape(pool3, [-1, 32 * 32 * 3 * 64])  # reshape to be flat (2D)
 
     # Performs the actual classification of the abstracted features from conv1/2
     dense = tf.layers.dense(
-        inputs=pool2_flat,     # inputs from flattened pool layer
+        inputs=pool3_flat,     # inputs from flattened pool layer
         units=512,             # 1,024 neurons in the layer (1024 outputs)
         activation=tf.nn.relu  # ReLU activation function
     )
@@ -83,7 +95,7 @@ def cnn_model_fn(features, labels, mode):
     outputs will later be turned into values from 0 to 1 representing actual
     probabilities (see predictions layer and tf.nn.softmax() below)
     Final shape: [batch_size, 10]"""
-    logits = tf.layers.dense(inputs=dropout, units=10)
+    logits = tf.layers.dense(inputs=dropout, units=2)
 
     predictions = {
         # Predicted class determined by finding the maximum value of the logits
@@ -118,7 +130,7 @@ def cnn_model_fn(features, labels, mode):
     if mode == tf.estimator.ModeKeys.TRAIN:
         # We want a low learning rate so that we can slowly but surely reach
         # the optimum. Higher rates may learn faster but may overshoot the opt
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.06)
+        optimizer = tf.train.AdamOptimizer(learning_rate=0.06)
 
         # Use our Grad Descent optimizer to minimize the loss we calculated!
         train_op = optimizer.minimize(
@@ -149,17 +161,17 @@ def cnn_model_fn(features, labels, mode):
     )
 
 def main(_):
-    # Load training and eval data from MNIST set of handdrawn images
-    mnist = load_dataset()
-    train_data = mnist.train.images
-    train_labels = np.asarray(mnist.train.labels, dtype=np.int32)
-    eval_data = mnist.test.images
-    eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
+    # Load training and eval data
+    dataset = load_dataset()
+    train_data = dataset.train.images
+    train_labels = np.asarray(dataset.train.labels, dtype=np.int32)
+    eval_data = dataset.test.images
+    eval_labels = np.asarray(dataset.test.labels, dtype=np.int32)
 
     # Create the actual Estimator to run our model
     classifier = tf.estimator.Estimator(
         model_fn=cnn_model_fn,  # the CNN model we created earlier!
-        model_dir="./convnet_model_fast4"  # save model data here
+        model_dir="./convnet_quake"  # save model data here
     )
 
     # Setup logging here
@@ -173,7 +185,7 @@ def main(_):
     train_input_fn = tf.estimator.inputs.numpy_input_fn(  # org. our inputs
         x={"x": train_data},  # set the feature data
         y=train_labels,       # set the truth labels
-        batch_size=100,       # num samples to give at a time - orig: 100
+        batch_size=8,       # num samples to give at a time - orig: 100
         num_epochs=None,
         shuffle=True)         # randomize
     classifier.train(
@@ -202,102 +214,6 @@ def load_dataset():
 	
 
 	images, labels = preprocess()
-
-def preprocess(data_folder):
-    # based on https://medium.com/@o.kroeger/tensorflow-mnist-and-your-own-handwritten-digits-4d1cd32bbab4
-
-    # the folders to contain our data
-    raw_filepath = os.path.join(data_folder, 'raw')
-    proc_filepath = os.path.join(data_folder, 'proc')
-
-    num_images = len(os.listdir(raw_filepath))
-
-    # np.arrays that we will fill with out image/label data
-    images = np.zeros((num_images, 784), dtype=np.float32)
-    labels = np.zeros((num_images, 1), dtype=np.int32)
-
-    # process each digit 0-9 one at a time
-    i = 0
-    for image_name in os.listdir(raw_filepath):
-        label = image_name[0]
-        if not label.isdigit():
-            continue
-
-        # load the image as a grayscale
-        gray = cv2.imread(os.path.join(raw_filepath, image_name),
-                          cv2.IMREAD_GRAYSCALE)
-
-        # resize to 28x28 and invert to white writing on black background
-        gray = cv2.resize(255-gray, (28, 28))
-
-        # change gray to black if darker than a threshold
-        (thresh, gray) = cv2.threshold(gray, 128, 255,
-                                       cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-        # Begin reformatting to center a 20x20 digit into a 28x28 box
-        while np.sum(gray[0]) == 0:
-            gray = gray[1:]
-        while np.sum(gray[:,0]) == 0:
-            gray = np.delete(gray,0,1)
-        while np.sum(gray[-1]) == 0:
-            gray = gray[:-1]
-        while np.sum(gray[:,-1]) == 0:
-            gray = np.delete(gray,-1,1)
-
-        # handle resizing to 20x20
-        rows, cols = gray.shape
-        if rows > cols:
-            factor = 20.0 / rows
-            rows = 20
-            cols = int(round(cols*factor))
-            gray = cv2.resize(gray, (cols,rows))
-        else:
-            factor = 20.0 / cols
-            cols = 20
-            rows = int(round(rows*factor))
-            gray = cv2.resize(gray, (cols, rows))
-
-        # Now pad to add the black edges to make 28x28
-        colsPadding = (int(math.ceil((28-cols)/2.0)),
-                       int(math.floor((28-cols)/2.0)))
-        rowsPadding = (int(math.ceil((28-rows)/2.0)),
-                       int(math.floor((28-rows)/2.0)))
-        gray = np.lib.pad(gray,(rowsPadding, colsPadding), 'constant')
-
-        # Now center based on center of mass
-        def getBestShift(img):
-            cy,cx = ndimage.measurements.center_of_mass(img)
-
-            rows,cols = img.shape
-            shiftx = np.round(cols/2.0-cx).astype(int)
-            shifty = np.round(rows/2.0-cy).astype(int)
-
-            return shiftx,shifty
-
-        def shift(img,sx,sy):
-            rows,cols = img.shape
-            M = np.float32([[1,0,sx],[0,1,sy]])
-            shifted = cv2.warpAffine(img,M,(cols,rows))  # matrix transform
-            return shifted
-
-        # Apply shifting of inner box to be centered based on centerof mass
-        shiftx, shifty = getBestShift(gray)
-        shifted = shift(gray, shiftx, shifty)
-        gray = shifted
-
-        # save processed images
-        if not os.path.exists(proc_filepath):
-            os.mkdir(proc_filepath)
-        cv2.imwrite(os.path.join(proc_filepath, image_name), gray)
-
-        # scale 0 to 1
-        flat = gray.flatten() / 255.0
-
-        images[i] = flat
-        labels[i] = label
-        i += 1
-
-    return images, labels
 
 if __name__ == "__main__":
   tf.app.run()
